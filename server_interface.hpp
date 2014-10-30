@@ -59,6 +59,10 @@ namespace fr {
 
       boost::signals2::signal<void (sockaddr *, size_t)> hangup;
 
+      // Service class thread spawned. Someone be a dear and monitor
+      // this signal, so threads can be cleaned up appropriately,
+      // kthx!
+      boost::signals2::signal<void (boost::thread *)> thread_spawned;
 
       // Start listening for connections. Returns a thread pointer in case
       // you want to join on it later.

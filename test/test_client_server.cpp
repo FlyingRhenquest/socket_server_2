@@ -26,12 +26,25 @@ class test_client_server : public CppUnit::TestFixture {
   CPPUNIT_TEST(test_echo_service);
   CPPUNIT_TEST_SUITE_END();
 
+  boost::thread *service_class_thread;
+
+  void set_service_class_thread(boost::thread *thrd)
+  {
+    if (nullptr == service_class_thread) {
+      service_class_thread = thrd;
+    } else {
+      CPPUNIT_FAIL("Unexpected service class thread received.");
+    }
+  }
+
 public:
 
   void test_echo_service()
   {
+    service_class_thread = nullptr;
     // Create a server on port 12345
     fr::socket::socket_server<fr::socket::server_body<echo_service> > my_echo_server(12345);
+    my_echo_server.thread_spawned.connect(boost::bind(&test_client_server::set_service_class_thread, this, _1));
     boost::thread *server_thread = my_echo_server.start();
     // Give the server time to start
     boost::this_thread::yield();
@@ -51,6 +64,11 @@ public:
     // string up that way. No matter how you go about it, there's always
     // a good bit of suck associated with threaded I/O.
     echo_client.streams->stream_out << std::endl;
+    if (nullptr == service_class_thread) {
+      CPPUNIT_FAIL("Service class thread never signaled");
+    }
+    service_class_thread->join();
+    delete service_class_thread;
     server_thread->join();
   }
 

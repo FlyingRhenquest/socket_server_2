@@ -112,7 +112,8 @@ namespace fr {
 	  tv.tv_sec = 1;
 	  tv.tv_usec = 0;
 	  FD_SET(sock, &set);
-	  sockaddr_in incoming_address;
+	  char address_buffer[SOCK_MAXADDRLEN];
+	  sockaddr_in *incoming_address = (sockaddr_in *) address_buffer;;
 
 	  select(sock + 1, &set, NULL, NULL, &tv);
 	  
@@ -120,7 +121,7 @@ namespace fr {
 	  // someone's trying to connect to us. So accept it...
 	  
 	  if (FD_ISSET(sock, &set)) {
-	    socklen_t size = sizeof(sockaddr_in);
+	    socklen_t size = SOCK_MAXADDRLEN;
 	    // So what this does is create a NEW file descriptor to
 	    // handle the freshly-arrived connection. This allows the
 	    // existing socket to continue listening. The new file
@@ -131,6 +132,11 @@ namespace fr {
 	      // I'm going to treat this as non-fatal
 	      perror("Error accepting connection");
 	    } else {
+	      // Anything wanting to do anything with incoming_address MUST copy the
+	      // address, either when this signal is received or in the service_class
+	      // constructor, below. If you derive your service class from
+	      // service_class_interface, the address will be copied for you.
+
 	      owner->connection_request((sockaddr *) &incoming_address, size);
 	      // This has to be instantiated prior to creating a
 	      // thread with it. If service class plans to use the
@@ -144,9 +150,9 @@ namespace fr {
 	      // some internets.
 
 	      boost::thread *thrd = new boost::thread(serve_it);
-	      // I'm never going to join this and I don't want them
-	      // piling up, so I'll just detach it here
-	      thrd->detach();
+	      // TODO: Implement non-leaking thread monitoring and
+	      // cleanup class
+	      owner->thread_spawned(thrd); // Now somebody else's problem!
 	    }
 	  }
 
